@@ -1,0 +1,17 @@
+.terraform:
+  cache:
+    key: default
+    paths:
+      - ${TF_ROOT}/.terraform
+      - ${TF_ROOT}/.terraform.lock.hcl
+  variables:
+    TF_ROOT: ${CI_PROJECT_DIR}
+    TF_IN_AUTOMATION: "true"
+    TF_HTTP_LOCK_METHOD: POST
+    TF_HTTP_UNLOCK_METHOD: DELETE
+    TF_HTTP_ADDRESS: https://gitlab.devtools.aandsco.people.aws.dev/api/v4/projects/${CI_PROJECT_ID}/terraform/state/${CI_ENVIRONMENT_NAME}
+    TF_HTTP_LOCK_ADDRESS: https://gitlab.devtools.aandsco.people.aws.dev/api/v4/projects/${CI_PROJECT_ID}/terraform/state/${CI_ENVIRONMENT_NAME}/lock
+    TF_HTTP_UNLOCK_ADDRESS: https://gitlab.devtools.aandsco.people.aws.dev/api/v4/projects/${CI_PROJECT_ID}/terraform/state/${CI_ENVIRONMENT_NAME}/lock
+    TF_HTTP_USERNAME: gitlab-ci-token 
+    TF_HTTP_PASSWORD: ${CI_JOB_TOKEN}
+

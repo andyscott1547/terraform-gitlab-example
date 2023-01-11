@@ -1,0 +1,133 @@
+include:
+   - local: .gitlab/terraform.yml
+
+variables: 
+  TERRAFORM_VER: "1.0.6"
+
+stages:
+  - destroy
+  - validate
+  - plan
+  - apply
+
+tf_unlock:
+  extends: [ .terraform ]
+  environment:
+    name: mgmt
+  stage: destroy
+  rules:
+    - if: $LOCK_ID
+      when: manual
+  image: 
+    name: amazon/aws-cli
+    entrypoint: [""]
+  before_script:
+    - yum -y install jq yum-utils unzip wget
+    - wget https://releases.hashicorp.com/terraform/${TERRAFORM_VER}/terraform_${TERRAFORM_VER}_linux_amd64.zip
+    - unzip terraform_${TERRAFORM_VER}_linux_amd64.zip
+    - mv terraform /usr/local/bin/
+  script:
+    - . ./assume_role.sh
+    - aws sts get-caller-identity
+    - terraform force-unlock -force ${LOCK_ID}
+
+tf_destroy:
+  extends: [ .terraform ]
+  environment:
+    name: mgmt
+  stage: destroy
+  rules:
+    - if: '$TF_DESTROY =~ /[Tt]rue/'
+      when: manual
+    - if: $LOCK_ID
+      when: never
+  image: 
+    name: amazon/aws-cli
+    entrypoint: [""]
+  before_script:
+    - yum -y install jq yum-utils unzip wget
+    - wget https://releases.hashicorp.com/terraform/${TERRAFORM_VER}/terraform_${TERRAFORM_VER}_linux_amd64.zip
+    - unzip terraform_${TERRAFORM_VER}_linux_amd64.zip
+    - mv terraform /usr/local/bin/
+  script:
+    - . ./assume_role.sh
+    - aws sts get-caller-identity
+    - terraform init -upgrade -reconfigure
+    - terraform destroy -auto-approve
+
+tf_validate:
+  extends: [ .terraform ]
+  stage: validate
+  variables:
+    TF_DESTROY: "false"
+  rules:
+    - if: $LOCK_ID
+      when: never
+    - if: '$TF_DESTROY !~ /[Tt]rue/'
+      when: always
+  image: 
+    name: amazon/aws-cli
+    entrypoint: [""]
+  before_script:
+    - yum -y install jq yum-utils unzip wget
+    - wget https://releases.hashicorp.com/terraform/${TERRAFORM_VER}/terraform_${TERRAFORM_VER}_linux_amd64.zip
+    - unzip terraform_${TERRAFORM_VER}_linux_amd64.zip
+    - mv terraform /usr/local/bin/
+  script:
+    - . ./assume_role.sh
+    - aws sts get-caller-identity
+    - terraform fmt -check -diff -recursive
+    - terraform init -backend=false
+    - terraform validate
+
+tf_plan:
+  extends: [ .terraform ]
+  stage: plan
+  variables:
+    TF_DESTROY: "false"
+  rules:
+    - if: $LOCK_ID
+      when: never
+    - if: '$TF_DESTROY !~ /[Tt]rue/'
+      when: on_success
+  image: 
+    name: amazon/aws-cli
+    entrypoint: [""]
+  before_script:
+    - yum -y install jq yum-utils unzip wget
+    - wget https://releases.hashicorp.com/terraform/${TERRAFORM_VER}/terraform_${TERRAFORM_VER}_linux_amd64.zip
+    - unzip terraform_${TERRAFORM_VER}_linux_amd64.zip
+    - mv terraform /usr/local/bin/
+  script:
+    - . ./assume_role.sh
+    - aws sts get-caller-identity
+    - terraform init -upgrade -reconfigure
+    - terraform plan -lock=false
+
+tf_apply:
+  extends: [ .terraform ]
+  environment:
+    name: mgmt
+  stage: apply
+  variables:
+    TF_DESTROY: "false"
+  rules:
+    - if: $LOCK_ID
+      when: never
+    - if: '$TF_DESTROY !~ /[Tt]rue/'
+      when: on_success
+  image: 
+    name: amazon/aws-cli
+    entrypoint: [""]
+  before_script:
+    - yum -y install jq yum-utils unzip wget
+    - wget https://releases.hashicorp.com/terraform/${TERRAFORM_VER}/terraform_${TERRAFORM_VER}_linux_amd64.zip
+    - unzip terraform_${TERRAFORM_VER}_linux_amd64.zip
+    - mv terraform /usr/local/bin/
+  script:
+    - . ./assume_role.sh
+    - aws sts get-caller-identity
+    - rm -f terraform_*.zip
+    - terraform init -upgrade -reconfigure
+    - terraform plan
+    - terraform apply -auto-approve
